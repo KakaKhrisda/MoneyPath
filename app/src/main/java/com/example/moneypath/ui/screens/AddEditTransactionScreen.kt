@@ -40,7 +40,6 @@ private val fallbackExpenseCategories = listOf(
     "Food & Dining", "Transportation", "Bills & Utilities",
     "Entertainment", "Shopping", "Health & Fitness", "Housing"
 )
-private val fallbackIncomeCategories = listOf("Salary", "Freelance", "Investments")
 
 // The date picker works in UTC midnight
 private fun dateToPickerMillis(text: String): Long =
@@ -69,7 +68,7 @@ fun AddEditTransactionScreen(
     onNavigateBack: () -> Unit
 ) {
     val existingTransaction = remember(transactionId) {
-        if (!transactionId.isNullOrEmpty() && transactionId != "new" && transactionId != "new_income") {
+        if (!transactionId.isNullOrEmpty() && transactionId != "new") {
             viewModel.transactions.value.find { it.id == transactionId }
         } else null
     }
@@ -83,19 +82,10 @@ fun AddEditTransactionScreen(
     // Live budget numbers, used to reject expenses bigger than what is left
     val budgetSummary by viewModel.budgetSummary.collectAsState()
 
-    // Expense or Income (can only be chosen when adding)
-    var txType by remember {
-        mutableStateOf(
-            existingTransaction?.type ?: if (transactionId == "new_income") TransactionType.INCOME else TransactionType.EXPENSE
-        )
-    }
-    val isIncome = txType == TransactionType.INCOME
-    val noun = if (isIncome) "Income" else "Expense"
-
     val categoryNames = allCategories
-        .filter { it.isExpense == !isIncome }
+        .filter { it.isExpense }
         .map { it.name }
-        .ifEmpty { if (isIncome) fallbackIncomeCategories else fallbackExpenseCategories }
+        .ifEmpty { fallbackExpenseCategories }
 
     val accountNames = (accounts.map { it.name } + listOfNotNull(existingTransaction?.accountName))
         .distinct()
@@ -110,7 +100,7 @@ fun AddEditTransactionScreen(
         )
     }
     var selectedCategory by remember {
-        mutableStateOf(existingTransaction?.category ?: if (isIncome) "Salary" else "Food & Dining")
+        mutableStateOf(existingTransaction?.category ?: "Food & Dining")
     }
     var selectedAccount by remember {
         mutableStateOf(existingTransaction?.accountName ?: accounts.firstOrNull()?.name ?: "Main Checking")
@@ -163,7 +153,7 @@ fun AddEditTransactionScreen(
     if (showDeleteDialog && existingTransaction != null) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Delete ${noun.lowercase()}?") },
+            title = { Text("Delete expense?") },
             text = { Text("This will remove \"${existingTransaction.title}\" and update your totals.") },
             confirmButton = {
                 TextButton(onClick = {
@@ -185,7 +175,7 @@ fun AddEditTransactionScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = if (isEditing) "Edit $noun" else "Add $noun",
+                        text = if (isEditing) "Edit Expense" else "Add Expense",
                         style = MaterialTheme.typography.headlineMedium.copy(
                             fontWeight = FontWeight.Bold,
                             color = primaryGreen,
@@ -215,33 +205,6 @@ fun AddEditTransactionScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Expense / Income switch (only when adding)
-            if (!isEditing) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf(TransactionType.EXPENSE to "Expense", TransactionType.INCOME to "Income")
-                        .forEach { (type, label) ->
-                            FilterChip(
-                                selected = txType == type,
-                                onClick = {
-                                    if (txType != type) {
-                                        txType = type
-                                        selectedCategory =
-                                            if (type == TransactionType.INCOME) "Salary" else "Food & Dining"
-                                        errorMessage = null
-                                    }
-                                },
-                                label = { Text(label, fontWeight = FontWeight.SemiBold) },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = primaryGreen,
-                                    selectedLabelColor = Color.White,
-                                    containerColor = Color.White
-                                ),
-                                shape = RoundedCornerShape(20.dp)
-                            )
-                        }
-                }
-            }
-
             // Amount
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 FieldLabel("Amount")
@@ -273,16 +236,16 @@ fun AddEditTransactionScreen(
                 )
             }
 
-            // Name / source
+            // Expense name
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                FieldLabel(if (isIncome) "Income source" else "Expense name")
+                FieldLabel("Expense name")
                 OutlinedTextField(
                     value = title,
                     onValueChange = {
                         title = it
                         errorMessage = null
                     },
-                    placeholder = { Text(if (isIncome) "e.g. Allowance" else "e.g. Lunch") },
+                    placeholder = { Text("e.g. Lunch") },
                     singleLine = true,
                     textStyle = MaterialTheme.typography.bodyLarge.copy(
                         fontWeight = FontWeight.Medium,
@@ -385,7 +348,7 @@ fun AddEditTransactionScreen(
 
             // Account
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                FieldLabel(if (isIncome) "Deposit to account" else "Pay from account")
+                FieldLabel("Pay from account")
                 Box {
                     OutlinedCard(
                         modifier = Modifier
@@ -542,8 +505,8 @@ fun AddEditTransactionScreen(
                         cleanAmount == null || cleanAmount <= 0.0 ->
                             errorMessage = "Enter a valid amount greater than 0"
                         title.isBlank() ->
-                            errorMessage = if (isIncome) "Enter an income source" else "Enter an expense name"
-                        !isIncome && budgetSummary.total > 0 && cleanAmount > allowedToSpend ->
+                            errorMessage = "Enter an expense name"
+                        budgetSummary.total > 0 && cleanAmount > allowedToSpend ->
                             errorMessage = "Expense exceeds your remaining budget (" +
                                     currency + "%,.0f".format(allowedToSpend.coerceAtLeast(0.0)) + ")"
                         else -> {
@@ -557,7 +520,7 @@ fun AddEditTransactionScreen(
                                 category = selectedCategory,
                                 date = selectedDate,
                                 time = existingTransaction?.time ?: currentTime,
-                                type = txType,
+                                type = TransactionType.EXPENSE,
                                 accountName = selectedAccount,
                                 note = note.trim()
                             )
@@ -577,7 +540,7 @@ fun AddEditTransactionScreen(
                 colors = ButtonDefaults.buttonColors(containerColor = primaryGreen)
             ) {
                 Text(
-                    text = if (isEditing) "Update $noun" else "Save $noun",
+                    text = if (isEditing) "Update Expense" else "Save Expense",
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
                         color = Color.White,
@@ -600,7 +563,7 @@ fun AddEditTransactionScreen(
                     Icon(Icons.Default.Delete, contentDescription = null, tint = Color(0xFFEF4444))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Delete $noun",
+                        text = "Delete Expense",
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFFEF4444),

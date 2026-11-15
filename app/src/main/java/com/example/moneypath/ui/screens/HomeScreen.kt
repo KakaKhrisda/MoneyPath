@@ -43,15 +43,16 @@ private fun money(currency: String, value: Double): String = currency + "%,.0f".
 @Composable
 fun HomeScreen(
     viewModel: MoneyPathViewModel,
-    onNavigateToTransactions: () -> Unit,
-    onNavigateToAddTransaction: () -> Unit,
-    onNavigateToTransactionDetail: (String) -> Unit,
-    onNavigateToBudgets: () -> Unit,
-    onNavigateToAnalytics: () -> Unit,
-    onNavigateToNotifications: () -> Unit,
-    onNavigateToGoals: () -> Unit,
-    onNavigateToAddGoal: () -> Unit,
-    onNavigateToBills: () -> Unit
+    onNavigateToTransactions: () -> Unit = {},
+    onNavigateToAddTransaction: () -> Unit = {},
+    onNavigateToTransactionDetail: (String) -> Unit = {},
+    onNavigateToBudgets: () -> Unit = {},
+    onNavigateToAnalytics: () -> Unit = {},
+    onNavigateToNotifications: () -> Unit = {},
+    onNavigateToGoals: () -> Unit = {},
+    onNavigateToAddGoal: () -> Unit = {},
+    onNavigateToBills: () -> Unit = {},
+    onNavigateToIncome: () -> Unit = {}
 ) {
     val userProfile by viewModel.userProfile.collectAsState()
     val currency = userProfile.currencySymbol.ifBlank { "MWK " }
@@ -73,6 +74,8 @@ fun HomeScreen(
         .filter { it.type == TransactionType.EXPENSE }
         .sortedByDescending { DateUtils.parse(it.date) ?: LocalDate.MIN }
     val recentExpenses = expenses.take(4)
+
+    val totalIncome = transactions.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
 
     val topCategories = expenses
         .filter { DateUtils.isInCurrentMonth(it.date) }
@@ -329,6 +332,82 @@ fun HomeScreen(
                                 BudgetDetailRow(label = "Remaining", amount = money(currency, summary.remaining), color = primaryGreen)
                                 BudgetDetailRow(label = "Total budget", amount = money(currency, summary.total), color = Color(0xFF374151))
                             }
+                        }
+                    }
+                }
+            }
+
+            // 4.5 Total Income Card (Interactive - navigates to Income Screen)
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onNavigateToIncome() },
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(18.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(46.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFFE8F5E9)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.AttachMoney,
+                                    contentDescription = null,
+                                    tint = Color(0xFF2E7D32),
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(
+                                    text = "Total Income Recorded",
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        color = Color(0xFF6B7280),
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                )
+                                Text(
+                                    text = money(currency, totalIncome),
+                                    style = MaterialTheme.typography.titleLarge.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF111827),
+                                        fontSize = 22.sp
+                                    )
+                                )
+                            }
+                        }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = "View",
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    color = Color(0xFF2E7D32),
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            )
+                            Icon(
+                                imageVector = Icons.Default.ChevronRight,
+                                contentDescription = null,
+                                tint = Color(0xFF2E7D32),
+                                modifier = Modifier.size(20.dp)
+                            )
                         }
                     }
                 }

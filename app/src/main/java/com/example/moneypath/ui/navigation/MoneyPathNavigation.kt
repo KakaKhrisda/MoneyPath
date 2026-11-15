@@ -212,7 +212,8 @@ fun MoneyPathAppNavigation(
                     onNavigateToNotifications = { navController.navigate("notifications") },
                     onNavigateToGoals = { navController.navigate("savings_goals") },
                     onNavigateToAddGoal = { navController.navigate("add_goal") },
-                    onNavigateToBills = { navController.navigate("bills") }
+                    onNavigateToBills = { navController.navigate("bills") },
+                    onNavigateToIncome = { navController.navigate("income_screen") }
                 )
             }
 
